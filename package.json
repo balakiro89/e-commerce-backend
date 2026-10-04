@@ -8,10 +8,10 @@
     "build": "tsc --noEmit && wrangler deploy --dry-run",
     "deploy": "node scripts/ci-deploy.mjs",
     "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:seed:seller": "tsx scripts/seed-seller.ts",
+    "db:generate": "node scripts/with-dev-vars.mjs drizzle-kit generate",
+    "db:migrate": "node scripts/with-dev-vars.mjs drizzle-kit migrate",
+    "db:push": "node scripts/with-dev-vars.mjs drizzle-kit push",
+    "db:seed:seller": "node scripts/with-dev-vars.mjs npx tsx scripts/seed-seller.ts",
     "postinstall": "node scripts/ensure-r2-bucket.mjs"
   },
   "repository": {

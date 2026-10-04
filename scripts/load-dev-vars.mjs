@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'drizzle-kit'
 
-function loadDevVars() {
-  const root = dirname(fileURLToPath(import.meta.url))
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+
+export function loadDevVars() {
   const devVarsPath = join(root, '.dev.vars')
   if (!existsSync(devVarsPath)) return
 
@@ -18,21 +18,3 @@ function loadDevVars() {
     if (process.env[key] === undefined) process.env[key] = value
   }
 }
-
-loadDevVars()
-
-const url = process.env.DATABASE_URL?.trim()
-if (!url) {
-  throw new Error(
-    'DATABASE_URL is missing. Add it to e-commerce-backend/.dev.vars (see .dev.vars.example) or set it in your shell.',
-  )
-}
-
-export default defineConfig({
-  schema: './src/db/schema/index.ts',
-  out: './src/db/migrations',
-  dialect: 'postgresql',
-  dbCredentials: {
-    url,
-  },
-})
