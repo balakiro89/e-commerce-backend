@@ -50,7 +50,10 @@ function mapOrderRow(
   return {
     id: order.id,
     order_number: order.orderNumber,
-    created_at: order.createdAt.toISOString(),
+    created_at:
+      order.createdAt instanceof Date
+        ? order.createdAt.toISOString()
+        : new Date(order.createdAt as unknown as string).toISOString(),
     items: items.map((item) => ({
       product_id: item.productId ?? '',
       product_name: item.productName,

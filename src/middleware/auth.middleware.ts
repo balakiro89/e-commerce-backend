@@ -12,7 +12,12 @@ export async function authMiddleware(c: Context<{ Bindings: Env; Variables: AppV
     throw new AppError('Unauthorized', 'UNAUTHORIZED', 401)
   }
   const token = header.slice('Bearer '.length)
-  const payload = await verifyAccessToken(token, c.env.JWT_SECRET)
+  let payload
+  try {
+    payload = await verifyAccessToken(token, c.env.JWT_SECRET)
+  } catch {
+    throw new AppError('Unauthorized', 'UNAUTHORIZED', 401)
+  }
   c.set('userId', payload.userId)
   c.set('userRole', payload.role)
   await next()

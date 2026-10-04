@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { errorMiddleware } from './middleware/error.middleware'
+import { handleError } from './middleware/error.middleware'
 import { adminRoutes } from './routes/admin.routes'
 import { authRoutes } from './routes/auth.routes'
 import { cartRoutes } from './routes/cart.routes'
@@ -12,7 +12,7 @@ import type { AppVariables, Env } from './types/env'
 
 const app = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
-app.use('*', errorMiddleware)
+app.onError(handleError)
 app.use(
   '*',
   cors({
@@ -26,6 +26,7 @@ app.use(
 app.get('/health', (c) => c.json({ ok: true, service: 'e-commerce-backend' }))
 
 const apiRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>()
+apiRoutes.onError(handleError)
 apiRoutes.route('/auth', authRoutes)
 apiRoutes.route('/products', productRoutes)
 apiRoutes.route('/cart', cartRoutes)

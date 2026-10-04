@@ -28,7 +28,7 @@ export const createProductSchema = z.object({
   stock: z.coerce.number().int().min(0),
   product_type: productType,
   is_active: z.boolean(),
-  image_urls: z.array(z.string()).max(10).default([]),
+  image_urls: z.array(z.string()).max(3).default([]),
   video_url: z.string().optional(),
   sku: z.string().max(64).optional(),
   compare_at_price: z.coerce.number().positive().optional(),
