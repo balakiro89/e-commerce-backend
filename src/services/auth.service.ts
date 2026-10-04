@@ -64,10 +64,15 @@ export async function loginUser(
   env: Env,
   input: { email_or_mobile: string; password: string },
 ) {
-  const identifier = input.email_or_mobile.trim().toLowerCase()
-  const user = await db.query.users.findFirst({
-    where: or(eq(users.email, identifier), eq(users.mobile, input.email_or_mobile.trim())),
+  const trimmed = input.email_or_mobile.trim()
+  const byEmail = await db.query.users.findFirst({
+    where: eq(users.email, trimmed.toLowerCase()),
   })
+  const user =
+    byEmail ??
+    (await db.query.users.findFirst({
+      where: eq(users.mobile, trimmed),
+    }))
   if (!user) throw new AppError('Invalid credentials', 'INVALID_CREDENTIALS', 401)
 
   const valid = await verifyPassword(input.password, user.passwordHash)

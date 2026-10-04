@@ -1,4 +1,5 @@
-const PBKDF2_ITERATIONS = 210_000
+/** Keep low enough for Cloudflare Workers CPU limits (~10–30ms). */
+const PBKDF2_ITERATIONS = 10_000
 
 function toBase64(bytes: Uint8Array): string {
   let binary = ''
@@ -36,6 +37,7 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  if (!stored) return false
   const [scheme, iterationsRaw, saltB64, hashB64] = stored.split('$')
   if (scheme !== 'pbkdf2' || !iterationsRaw || !saltB64 || !hashB64) return false
 

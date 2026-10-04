@@ -12,6 +12,7 @@
     "db:migrate": "node scripts/with-dev-vars.mjs drizzle-kit migrate",
     "db:push": "node scripts/with-dev-vars.mjs drizzle-kit push",
     "db:seed:seller": "node scripts/with-dev-vars.mjs npx tsx scripts/seed-seller.ts",
+    "secrets:sync": "node scripts/sync-worker-secrets.mjs",
     "postinstall": "node scripts/ensure-r2-bucket.mjs"
   },
   "repository": {
@@ -20,6 +21,7 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",
+    "@neondatabase/serverless": "^1.2.0",
     "drizzle-orm": "^0.45.3",
     "hono": "^4.13.12",
     "jose": "^6.2.12",
