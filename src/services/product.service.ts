@@ -362,7 +362,7 @@ export async function decrementStock(db: Db, productId: string, quantity: number
       updatedAt: new Date(),
     })
     .where(and(eq(products.id, productId), gte(products.stock, quantity)))
-    .returning({ id: products.id })
+    .returning()
 
   return result.length > 0
 }

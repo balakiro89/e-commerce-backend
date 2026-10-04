@@ -115,44 +115,49 @@ export async function createOrder(db: Db, env: Env, input: CreateOrderInput, use
 
   const orderNumber = generateOrderNumber()
 
-  const result = await db.transaction(async (tx) => {
-    const [order] = await tx
-      .insert(orders)
-      .values({
-        orderNumber,
-        userId: userId ?? null,
-        customerName: input.customer_name,
-        customerEmail: input.customer_email.toLowerCase(),
-        customerPhone: input.customer_phone,
-        shippingFullName: input.customer_name,
-        shippingLine1: input.shipping_address.address,
-        shippingLine2: null,
-        shippingCity: input.shipping_address.city,
-        shippingState: input.shipping_address.state,
-        shippingPostalCode: input.shipping_address.pincode,
-        shippingCountry: input.shipping_address.country,
-        subtotal: String(subtotal),
-        total: String(total),
-        orderStatus: 'payment_pending',
-        paymentStatus: 'pending',
-      })
-      .returning()
+  // Neon HTTP (Workers) does not support drizzle transactions — use sequential writes + rollback.
+  const [order] = await db
+    .insert(orders)
+    .values({
+      orderNumber,
+      userId: userId ?? null,
+      customerName: input.customer_name,
+      customerEmail: input.customer_email.toLowerCase(),
+      customerPhone: input.customer_phone,
+      shippingFullName: input.customer_name,
+      shippingLine1: input.shipping_address.address,
+      shippingLine2: null,
+      shippingCity: input.shipping_address.city,
+      shippingState: input.shipping_address.state,
+      shippingPostalCode: input.shipping_address.pincode,
+      shippingCountry: input.shipping_address.country,
+      subtotal: String(subtotal),
+      total: String(total),
+      orderStatus: 'payment_pending',
+      paymentStatus: 'pending',
+    })
+    .returning()
 
+  const stockRestores: { productId: string; quantity: number }[] = []
+
+  try {
     for (const line of lineItems) {
-      const ok = await tx
+      const ok = await db
         .update(products)
         .set({
           stock: sql`${products.stock} - ${line.quantity}`,
           updatedAt: new Date(),
         })
         .where(and(eq(products.id, line.product.id), gte(products.stock, line.quantity)))
-        .returning({ id: products.id })
+        .returning()
 
       if (ok.length === 0) {
         throw new AppError(`Insufficient stock for ${line.product.name}`, 'INSUFFICIENT_STOCK', 409)
       }
 
-      await tx.insert(orderItems).values({
+      stockRestores.push({ productId: line.product.id, quantity: line.quantity })
+
+      await db.insert(orderItems).values({
         orderId: order.id,
         productId: line.product.id,
         productName: line.product.name,
@@ -164,12 +169,23 @@ export async function createOrder(db: Db, env: Env, input: CreateOrderInput, use
         totalPrice: String(line.totalPrice),
       })
     }
+  } catch (error) {
+    for (const restore of stockRestores) {
+      await db
+        .update(products)
+        .set({
+          stock: sql`${products.stock} + ${restore.quantity}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(products.id, restore.productId))
+    }
+    await db.delete(orderItems).where(eq(orderItems.orderId, order.id))
+    await db.delete(orders).where(eq(orders.id, order.id))
+    throw error
+  }
 
-    return order
-  })
-
-  const items = await db.query.orderItems.findMany({ where: eq(orderItems.orderId, result.id) })
-  return mapOrderRow(result, items, env)
+  const items = await db.query.orderItems.findMany({ where: eq(orderItems.orderId, order.id) })
+  return mapOrderRow(order, items, env)
 }
 
 export async function listOrdersForUser(db: Db, env: Env, userId: string) {
