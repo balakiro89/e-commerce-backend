@@ -1,4 +1,4 @@
-# epic-api
+# bkenterprises-api
 
 Production backend for the painting e-commerce app, built with **Cloudflare Workers**, **Hono**, **TypeScript**, **Neon PostgreSQL**, **Drizzle ORM**, **Hyperdrive**, **Cloudflare R2**, and **Razorpay**.
 
@@ -30,7 +30,7 @@ Routes are mounted at both `/` and `/api` so the React app can use `VITE_API_URL
 1. Copy `.dev.vars.example` to `.dev.vars` and fill secrets.
 2. Create a Neon database and set `DATABASE_URL`.
 3. Set Worker secret `DATABASE_URL` to your Neon connection string (Cloudflare dashboard or `wrangler secret put DATABASE_URL`).
-4. Create / bind R2 bucket `epic-valut` (see `wrangler.jsonc`).
+4. Create / bind R2 bucket `bkenterprises-media` (see `wrangler.jsonc`).
 5. Optional: add [Hyperdrive](https://developers.cloudflare.com/hyperdrive/) later and bind `HYPERDRIVE` in `wrangler.jsonc` for connection pooling.
 6. Apply schema:
 
@@ -52,22 +52,22 @@ npm run dev
 
 ## Cloudflare Workers Builds
 
-If the repo root contains `epic-web` and `epic-api`, set **Root directory** to `epic-api`.
+If the monorepo contains `e-commerce-frontend` and `e-commerce-backend`, set **Root directory** to `e-commerce-backend`.
 
 | Setting | Value |
 |---------|--------|
 | Build command | `npm run build` *(optional; typecheck + wrangler dry-run)* |
 | Deploy command | `npm run deploy` |
 
-The deploy script creates R2 bucket `epic-valut` if missing (same Cloudflare account as the build token), then runs `wrangler deploy`. The Worker name in `wrangler.jsonc` must match the connected Worker (**`epic-api`**).
+The deploy script creates R2 bucket `bkenterprises-media` if missing (same Cloudflare account as the build token), then runs `wrangler deploy`. The Worker name in `wrangler.jsonc` must match the connected Worker (**`bkenterprises-api`**).
 
-Set these **secrets** on the `epic-api` Worker: `DATABASE_URL`, `JWT_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`.
+Set these **secrets** on the `bkenterprises-api` Worker: `DATABASE_URL`, `JWT_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`.
 
-Production API URL: `https://epic-api.<your-subdomain>.workers.dev` (update Razorpay webhook and `VITE_API_URL` if you previously used another Worker name).
+Production API URL: `https://bkenterprises-api.<your-subdomain>.workers.dev` (update Razorpay webhook and `VITE_API_URL` if you previously used another Worker name).
 
 ## Frontend integration
 
-Set in `epic-web`:
+Set in `bkenterprises-web`:
 
 ```env
 VITE_API_URL=http://127.0.0.1:8787

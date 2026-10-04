@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 
-const BUCKET = 'epic-valut'
+const BUCKET = 'bkenterprises-media'
 
 const isCloudflareBuild =
   Boolean(process.env.CF_ACCOUNT_ID) ||

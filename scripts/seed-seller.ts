@@ -8,9 +8,9 @@ async function main() {
   const databaseUrl = process.env.DATABASE_URL
   if (!databaseUrl) throw new Error('DATABASE_URL is required')
 
-  const email = process.env.SEED_SELLER_EMAIL ?? 'seller@epic.local'
+  const email = process.env.SEED_SELLER_EMAIL ?? 'seller@bkenterprises.com'
   const password = process.env.SEED_SELLER_PASSWORD ?? 'Seller@12345'
-  const username = process.env.SEED_SELLER_USERNAME ?? 'Epic Seller'
+  const username = process.env.SEED_SELLER_USERNAME ?? 'BK Enterprises Seller'
   const mobile = process.env.SEED_SELLER_MOBILE ?? '9876543210'
 
   const passwordHash = await hashPassword(password)

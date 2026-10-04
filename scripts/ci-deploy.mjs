@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 
-const BUCKET = 'epic-valut'
+const BUCKET = 'bkenterprises-media'
 
 function wrangler(args, { allowFailure = false } = {}) {
   const result = spawnSync('npx', ['wrangler', ...args], {

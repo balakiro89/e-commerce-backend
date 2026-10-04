@@ -23,7 +23,7 @@ app.use(
   }),
 )
 
-app.get('/health', (c) => c.json({ ok: true, service: 'epic-api' }))
+app.get('/health', (c) => c.json({ ok: true, service: 'bkenterprises-api' }))
 
 const apiRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 apiRoutes.route('/auth', authRoutes)
