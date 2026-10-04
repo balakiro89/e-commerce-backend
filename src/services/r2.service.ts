@@ -32,6 +32,46 @@ export function resolveMediaUrl(env: Env, keyOrUrl: string): string {
   return base ? `${base}/${keyOrUrl}` : keyOrUrl
 }
 
+function r2KeyFromPublicUrl(env: Env, url: string): string | null {
+  const base = env.R2_PUBLIC_URL?.replace(/\/$/, '')
+  if (!base || !url.startsWith(`${base}/`)) return null
+  return url.slice(base.length + 1)
+}
+
+export async function uploadProductMediaFile(
+  env: Env,
+  file: File,
+  kind: 'IMAGE' | 'VIDEO',
+): Promise<{ url: string; r2_key: string; file_name: string }> {
+  const maxBytes = kind === 'VIDEO' ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES
+  if (file.size > maxBytes) {
+    throw new AppError('Media file is too large', 'MEDIA_TOO_LARGE', 400)
+  }
+
+  const mime = file.type || (kind === 'VIDEO' ? 'video/mp4' : 'image/jpeg')
+  if (kind === 'IMAGE' && !mime.startsWith('image/')) {
+    throw new AppError('File must be an image', 'INVALID_MEDIA', 400)
+  }
+  if (kind === 'VIDEO' && !mime.startsWith('video/')) {
+    throw new AppError('File must be a video', 'INVALID_MEDIA', 400)
+  }
+
+  const ext = extensionForMime(mime)
+  const stamp = crypto.randomUUID()
+  const fileName = kind === 'VIDEO' ? `video.${ext}` : `image-${stamp.slice(0, 8)}.${ext}`
+  const r2Key = `products/uploads/${stamp}/${fileName}`
+
+  await env.PRODUCT_MEDIA_BUCKET.put(r2Key, file.stream(), {
+    httpMetadata: { contentType: mime },
+  })
+
+  return {
+    url: resolveMediaUrl(env, r2Key),
+    r2_key: r2Key,
+    file_name: fileName,
+  }
+}
+
 export async function persistMediaInput(
   env: Env,
   productId: string,
@@ -40,6 +80,14 @@ export async function persistMediaInput(
   sortOrder: number,
 ): Promise<{ r2Key: string; fileName: string; url: string }> {
   if (input.startsWith('http://') || input.startsWith('https://') || input.startsWith('/')) {
+    const keyFromPublic = input.startsWith('http') ? r2KeyFromPublicUrl(env, input) : null
+    if (keyFromPublic) {
+      return {
+        r2Key: keyFromPublic,
+        fileName: keyFromPublic.split('/').pop() ?? 'file',
+        url: resolveMediaUrl(env, keyFromPublic),
+      }
+    }
     return {
       r2Key: input,
       fileName: input.split('/').pop() ?? 'external',

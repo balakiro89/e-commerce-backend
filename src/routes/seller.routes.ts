@@ -11,7 +11,8 @@ import {
   updateProduct,
 } from '../services/product.service'
 import type { AppVariables, Env } from '../types/env'
-import { direct } from '../utils/response'
+import { uploadProductMediaFile } from '../services/r2.service'
+import { AppError, direct } from '../utils/response'
 import { updateOrderStatusSchema } from '../validators/order.schema'
 import { createProductSchema as sellerProductSchema } from '../validators/product.schema'
 
@@ -38,6 +39,20 @@ sellerRoutes.patch('/orders/:id', zValidator('json', updateOrderStatusSchema), a
     c.req.valid('json').order_status,
   )
   return direct(c, data)
+})
+
+sellerRoutes.post('/uploads', async (c) => {
+  const formData = await c.req.formData()
+  const file = formData.get('file')
+  const kindRaw = formData.get('kind')
+  const kind = kindRaw === 'VIDEO' ? 'VIDEO' : 'IMAGE'
+
+  if (!(file instanceof File)) {
+    throw new AppError('Missing file upload', 'INVALID_MEDIA', 400)
+  }
+
+  const uploaded = await uploadProductMediaFile(c.env, file, kind)
+  return direct(c, uploaded, 201)
 })
 
 sellerRoutes.get('/products', async (c) => {

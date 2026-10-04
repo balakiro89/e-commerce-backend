@@ -5,7 +5,7 @@
   "compatibility_date": "2024-09-23",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "R2_PUBLIC_URL": "https://pub-b75213003d554149ae352a991ceaf50c.r2.dev"
+    "R2_PUBLIC_URL": "https://pub-de6125e8698744b98ce8e157840a007b.r2.dev"
   },
   "r2_buckets": [
     {
