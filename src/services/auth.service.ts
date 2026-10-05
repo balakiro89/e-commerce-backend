@@ -1,62 +1,57 @@
-import { and, eq, gt, isNull, or } from 'drizzle-orm'
+import { and, eq, gt, isNull } from 'drizzle-orm'
 import type { Db } from '../db/client'
-import { passwordResetTokens, userSessions, users } from '../db/schema'
+import { passwordResetTokens, users } from '../db/schema'
 import type { Env } from '../types/env'
 import { mapUser } from '../utils/mappers'
 import { hashPassword, hashToken, verifyPassword } from '../utils/password'
 import { AppError } from '../utils/response'
-import { createRefreshToken, createResetToken, signAccessToken } from '../utils/token'
+import { createResetToken, signAccessToken } from '../utils/token'
 
 function accessTtlMinutes(env: Env): number {
   return Number(env.ACCESS_TOKEN_TTL_MINUTES ?? 15)
 }
 
-function refreshTtlDays(env: Env): number {
-  return Number(env.REFRESH_TOKEN_TTL_DAYS ?? 30)
-}
-
-async function issueSession(db: Db, env: Env, userId: string, role: typeof users.$inferSelect.role) {
-  const refreshToken = createRefreshToken()
-  const refreshTokenHash = await hashToken(refreshToken)
-  const expiresAt = new Date(Date.now() + refreshTtlDays(env) * 24 * 60 * 60 * 1000)
-
-  await db.insert(userSessions).values({
-    userId,
-    refreshTokenHash,
-    expiresAt,
-  })
-
-  const access_token = await signAccessToken(
-    { sub: userId, role },
-    env.JWT_SECRET,
-    accessTtlMinutes(env),
-  )
-
-  return { access_token, refresh_token: refreshToken }
+async function issueAccessToken(
+  env: Env,
+  userId: string,
+  role: typeof users.$inferSelect.role,
+): Promise<string> {
+  return signAccessToken({ sub: userId, role }, env.JWT_SECRET, accessTtlMinutes(env))
 }
 
 export async function registerUser(
   db: Db,
-  env: Env,
   input: { username: string; email: string; mobile: string; password: string },
 ) {
-  const existing = await db.query.users.findFirst({ where: eq(users.email, input.email.toLowerCase()) })
-  if (existing) throw new AppError('Email is already registered', 'EMAIL_EXISTS', 409)
+  const email = input.email.toLowerCase()
+  const existingEmail = await db.query.users.findFirst({ where: eq(users.email, email) })
+  if (existingEmail) throw new AppError('Email is already registered', 'EMAIL_EXISTS', 409)
+
+  const existingUsername = await db.query.users.findFirst({
+    where: eq(users.username, input.username.trim()),
+  })
+  if (existingUsername) {
+    throw new AppError('Username is already taken', 'USERNAME_EXISTS', 409)
+  }
+
+  const existingMobile = await db.query.users.findFirst({ where: eq(users.mobile, input.mobile) })
+  if (existingMobile) {
+    throw new AppError('Mobile number is already registered', 'MOBILE_EXISTS', 409)
+  }
 
   const passwordHash = await hashPassword(input.password)
   const [created] = await db
     .insert(users)
     .values({
-      username: input.username,
-      email: input.email.toLowerCase(),
+      username: input.username.trim(),
+      email,
       mobile: input.mobile,
       passwordHash,
       role: 'customer',
     })
     .returning()
 
-  const tokens = await issueSession(db, env, created.id, created.role)
-  return { user: mapUser(created), ...tokens }
+  return { user: mapUser(created) }
 }
 
 export async function loginUser(
@@ -78,46 +73,8 @@ export async function loginUser(
   const valid = await verifyPassword(input.password, user.passwordHash)
   if (!valid) throw new AppError('Invalid credentials', 'INVALID_CREDENTIALS', 401)
 
-  const tokens = await issueSession(db, env, user.id, user.role)
-  return { user: mapUser(user), ...tokens }
-}
-
-export async function refreshSession(db: Db, env: Env, refreshToken: string) {
-  const refreshTokenHash = await hashToken(refreshToken)
-  const session = await db.query.userSessions.findFirst({
-    where: and(
-      eq(userSessions.refreshTokenHash, refreshTokenHash),
-      isNull(userSessions.revokedAt),
-      gt(userSessions.expiresAt, new Date()),
-    ),
-  })
-  if (!session) throw new AppError('Invalid refresh token', 'INVALID_REFRESH_TOKEN', 401)
-
-  const user = await db.query.users.findFirst({ where: eq(users.id, session.userId) })
-  if (!user) throw new AppError('Invalid refresh token', 'INVALID_REFRESH_TOKEN', 401)
-
-  await db
-    .update(userSessions)
-    .set({ revokedAt: new Date() })
-    .where(eq(userSessions.id, session.id))
-
-  const tokens = await issueSession(db, env, user.id, user.role)
-  return { user: mapUser(user), ...tokens }
-}
-
-export async function logoutSession(db: Db, refreshToken: string) {
-  const refreshTokenHash = await hashToken(refreshToken)
-  await db
-    .update(userSessions)
-    .set({ revokedAt: new Date() })
-    .where(eq(userSessions.refreshTokenHash, refreshTokenHash))
-}
-
-export async function logoutAllSessions(db: Db, userId: string) {
-  await db
-    .update(userSessions)
-    .set({ revokedAt: new Date() })
-    .where(and(eq(userSessions.userId, userId), isNull(userSessions.revokedAt)))
+  const access_token = await issueAccessToken(env, user.id, user.role)
+  return { user: mapUser(user), access_token }
 }
 
 export async function requestPasswordReset(db: Db, email: string) {
@@ -154,7 +111,6 @@ export async function resetPasswordWithToken(db: Db, token: string, password: st
     .update(passwordResetTokens)
     .set({ usedAt: new Date() })
     .where(eq(passwordResetTokens.id, record.id))
-  await logoutAllSessions(db, record.userId)
 }
 
 export async function legacyResetPassword(db: Db, email: string, password: string) {
@@ -162,7 +118,6 @@ export async function legacyResetPassword(db: Db, email: string, password: strin
   if (!user) throw new AppError('Account not found', 'USER_NOT_FOUND', 404)
   const passwordHash = await hashPassword(password)
   await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, user.id))
-  await logoutAllSessions(db, user.id)
 }
 
 export async function checkEmailExists(db: Db, email: string) {

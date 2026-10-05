@@ -15,12 +15,63 @@ function parseDataUrl(value: string): { mime: string; bytes: Uint8Array } | null
 }
 
 function extensionForMime(mime: string): string {
+  if (mime.includes('avif')) return 'avif'
   if (mime.includes('webp')) return 'webp'
   if (mime.includes('png')) return 'png'
+  if (mime.includes('gif')) return 'gif'
+  if (mime.includes('heic') || mime.includes('heif')) return 'heic'
   if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg'
   if (mime.includes('mp4')) return 'mp4'
   if (mime.includes('webm')) return 'webm'
+  if (mime.includes('quicktime')) return 'mov'
   return 'bin'
+}
+
+function mimeFromFileName(name: string): string | null {
+  const ext = name.split('.').pop()?.toLowerCase()
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg':
+    case 'jfif':
+      return 'image/jpeg'
+    case 'png':
+      return 'image/png'
+    case 'webp':
+      return 'image/webp'
+    case 'avif':
+      return 'image/avif'
+    case 'gif':
+      return 'image/gif'
+    case 'heic':
+    case 'heif':
+      return 'image/heic'
+    case 'mp4':
+      return 'video/mp4'
+    case 'webm':
+      return 'video/webm'
+    case 'mov':
+      return 'video/quicktime'
+    default:
+      return null
+  }
+}
+
+function resolveUploadMime(file: File, kind: 'IMAGE' | 'VIDEO'): string {
+  const raw = file.type?.split(';')[0]?.trim().toLowerCase()
+  if (raw && raw !== 'application/octet-stream') return raw
+  return mimeFromFileName(file.name) ?? (kind === 'VIDEO' ? 'video/mp4' : 'image/jpeg')
+}
+
+function assertMediaBucket(env: Env): R2Bucket {
+  const bucket = env.PRODUCT_MEDIA_BUCKET
+  if (!bucket) {
+    throw new AppError(
+      'Product media storage is not configured on the Worker (R2 binding missing)',
+      'STORAGE_UNAVAILABLE',
+      503,
+    )
+  }
+  return bucket
 }
 
 export function resolveMediaUrl(env: Env, keyOrUrl: string): string {
@@ -34,8 +85,19 @@ export function resolveMediaUrl(env: Env, keyOrUrl: string): string {
 
 function r2KeyFromPublicUrl(env: Env, url: string): string | null {
   const base = env.R2_PUBLIC_URL?.replace(/\/$/, '')
-  if (!base || !url.startsWith(`${base}/`)) return null
-  return url.slice(base.length + 1)
+  if (base && url.startsWith(`${base}/`)) {
+    return url.slice(base.length + 1)
+  }
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname.endsWith('.r2.dev')) {
+      const key = parsed.pathname.replace(/^\//, '')
+      return key || null
+    }
+  } catch {
+    // not a URL
+  }
+  return null
 }
 
 export async function uploadProductMediaFile(
@@ -43,12 +105,18 @@ export async function uploadProductMediaFile(
   file: File,
   kind: 'IMAGE' | 'VIDEO',
 ): Promise<{ url: string; r2_key: string; file_name: string }> {
+  const bucket = assertMediaBucket(env)
+
+  if (file.size <= 0) {
+    throw new AppError('Uploaded file is empty', 'INVALID_MEDIA', 400)
+  }
+
   const maxBytes = kind === 'VIDEO' ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES
   if (file.size > maxBytes) {
     throw new AppError('Media file is too large', 'MEDIA_TOO_LARGE', 400)
   }
 
-  const mime = file.type || (kind === 'VIDEO' ? 'video/mp4' : 'image/jpeg')
+  const mime = resolveUploadMime(file, kind)
   if (kind === 'IMAGE' && !mime.startsWith('image/')) {
     throw new AppError('File must be an image', 'INVALID_MEDIA', 400)
   }
@@ -61,7 +129,8 @@ export async function uploadProductMediaFile(
   const fileName = kind === 'VIDEO' ? `video.${ext}` : `image-${stamp.slice(0, 8)}.${ext}`
   const r2Key = `products/uploads/${stamp}/${fileName}`
 
-  await env.PRODUCT_MEDIA_BUCKET.put(r2Key, file.stream(), {
+  const body = await file.arrayBuffer()
+  await bucket.put(r2Key, body, {
     httpMetadata: { contentType: mime },
   })
 
@@ -109,7 +178,7 @@ export async function persistMediaInput(
   const fileName = kind === 'VIDEO' ? `demo.${ext}` : `gallery-${String(sortOrder).padStart(2, '0')}.${ext}`
   const r2Key = `products/${productId}/${fileName}`
 
-  await env.PRODUCT_MEDIA_BUCKET.put(r2Key, parsed.bytes, {
+  await assertMediaBucket(env).put(r2Key, parsed.bytes, {
     httpMetadata: { contentType: parsed.mime },
   })
 
@@ -118,5 +187,7 @@ export async function persistMediaInput(
 
 export async function deleteR2Object(env: Env, key: string) {
   if (!key.startsWith('products/')) return
-  await env.PRODUCT_MEDIA_BUCKET.delete(key)
+  const bucket = env.PRODUCT_MEDIA_BUCKET
+  if (!bucket) return
+  await bucket.delete(key)
 }

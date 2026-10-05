@@ -5,9 +5,6 @@ import {
   checkEmailExists,
   legacyResetPassword,
   loginUser,
-  logoutAllSessions,
-  logoutSession,
-  refreshSession,
   registerUser,
   requestPasswordReset,
   resetPasswordWithToken,
@@ -22,7 +19,6 @@ import {
   legacyResetPasswordSchema,
   loginSchema,
   profileUpdateSchema,
-  refreshSchema,
   registerSchema,
   resetPasswordSchema,
 } from '../validators/auth.schema'
@@ -31,42 +27,18 @@ export const authRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 
 authRoutes.post('/register', zValidator('json', registerSchema), async (c) => {
   const db = createDb(c.env)
-  const result = await registerUser(db, c.env, c.req.valid('json'))
-  return direct(c, { user: result.user, access_token: result.access_token })
+  const result = await registerUser(db, c.req.valid('json'))
+  return direct(c, result, 201)
 })
 
 authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
   const db = createDb(c.env)
   const result = await loginUser(db, c.env, c.req.valid('json'))
-  return direct(c, { user: result.user, access_token: result.access_token })
-})
-
-authRoutes.post('/refresh', zValidator('json', refreshSchema), async (c) => {
-  const db = createDb(c.env)
-  const result = await refreshSession(db, c.env, c.req.valid('json').refresh_token)
-  return success(c, 'Token refreshed', {
-    user: result.user,
-    access_token: result.access_token,
-    refresh_token: result.refresh_token,
-  })
+  return direct(c, result)
 })
 
 authRoutes.post('/logout', authMiddleware, async (c) => {
-  const db = createDb(c.env)
-  const body = (await c.req.json<{ refresh_token?: string }>().catch(() => ({}))) as {
-    refresh_token?: string
-  }
-  if (body.refresh_token) {
-    await logoutSession(db, body.refresh_token)
-  }
   return direct(c, { success: true })
-})
-
-authRoutes.post('/logout-all', authMiddleware, async (c) => {
-  const user = await loadUserOrFail(c)
-  const db = createDb(c.env)
-  await logoutAllSessions(db, user.id)
-  return success(c, 'Logged out from all devices', null)
 })
 
 authRoutes.post('/forgot-password', zValidator('json', forgotPasswordSchema), async (c) => {
@@ -74,7 +46,6 @@ authRoutes.post('/forgot-password', zValidator('json', forgotPasswordSchema), as
   const { email } = c.req.valid('json')
   const result = await requestPasswordReset(db, email)
   return success(c, 'If the account exists, reset instructions were sent', {
-    // Returned only for development/testing without email provider.
     reset_token: result.resetToken,
   })
 })

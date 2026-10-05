@@ -207,7 +207,10 @@ export async function listOrdersForUser(db: Db, env: Env, userId: string) {
 export async function getOrderById(db: Db, env: Env, orderId: string, userId?: string) {
   const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
   if (!order) throw new AppError('Order not found', 'ORDER_NOT_FOUND', 404)
-  if (userId && order.userId && order.userId !== userId) {
+  if (!userId) {
+    throw new AppError('Order not found', 'ORDER_NOT_FOUND', 404)
+  }
+  if (!order.userId || order.userId !== userId) {
     throw new AppError('Order not found', 'ORDER_NOT_FOUND', 404)
   }
   const items = await db.query.orderItems.findMany({ where: eq(orderItems.orderId, order.id) })

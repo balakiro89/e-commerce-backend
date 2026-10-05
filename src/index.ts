@@ -27,6 +27,19 @@ app.get('/health', (c) => c.json({ ok: true, service: 'e-commerce-backend' }))
 
 const apiRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>()
 apiRoutes.onError(handleError)
+
+for (const routes of [
+  authRoutes,
+  productRoutes,
+  cartRoutes,
+  orderRoutes,
+  paymentRoutes,
+  adminRoutes,
+  sellerRoutes,
+] as const) {
+  routes.onError(handleError)
+}
+
 apiRoutes.route('/auth', authRoutes)
 apiRoutes.route('/products', productRoutes)
 apiRoutes.route('/cart', cartRoutes)

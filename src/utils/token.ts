@@ -28,11 +28,7 @@ export async function verifyAccessToken(token: string, secret: string) {
   return { userId: sub, role: role as UserRole }
 }
 
-export function createRefreshToken(): string {
+export function createResetToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
   return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
-export function createResetToken(): string {
-  return createRefreshToken()
 }

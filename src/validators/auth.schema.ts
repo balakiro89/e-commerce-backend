@@ -12,10 +12,6 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
 })
 
-export const refreshSchema = z.object({
-  refresh_token: z.string().min(10),
-})
-
 export const forgotPasswordSchema = z.object({
   email: z.string().email(),
 })

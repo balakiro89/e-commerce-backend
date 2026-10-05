@@ -10,7 +10,6 @@ export interface Env {
   RAZORPAY_WEBHOOK_SECRET: string
   R2_PUBLIC_URL: string
   ACCESS_TOKEN_TTL_MINUTES?: string
-  REFRESH_TOKEN_TTL_DAYS?: string
 }
 
 export type AppVariables = {

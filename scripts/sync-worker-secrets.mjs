@@ -15,6 +15,7 @@ const devVarsPath = join(root, '.dev.vars')
 const SKIP_KEYS = new Set([
   'R2_PUBLIC_URL',
   'CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE',
+  'REFRESH_TOKEN_TTL_DAYS',
 ])
 
 if (!existsSync(devVarsPath)) {

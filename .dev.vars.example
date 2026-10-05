@@ -9,4 +9,3 @@ RAZORPAY_WEBHOOK_SECRET=replace-me
 # Public R2 dev domain (Enable public access on the bucket in Cloudflare)
 R2_PUBLIC_URL=https://pub-xxxxx.r2.dev
 ACCESS_TOKEN_TTL_MINUTES=15
-REFRESH_TOKEN_TTL_DAYS=30

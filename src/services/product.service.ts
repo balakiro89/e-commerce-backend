@@ -69,14 +69,25 @@ function mapBuyerProduct(
   media: (typeof productMedia.$inferSelect)[],
   env: Env,
 ) {
-  const image = media.find((m) => m.mediaType === 'IMAGE')
+  const images = media
+    .filter((m) => m.mediaType === 'IMAGE')
+    .sort((a, b) => {
+      const byOrder = a.sortOrder - b.sortOrder
+      if (byOrder !== 0) return byOrder
+      return a.createdAt.getTime() - b.createdAt.getTime()
+    })
+    .map((m) => resolveMediaUrl(env, m.r2Key))
+  const video = media.find((m) => m.mediaType === 'VIDEO')
+  const fallback = '/banners/category-watercolor-art.jpg'
   return {
     id: product.id,
     name: product.name,
     description: product.description,
     short_description: product.shortDescription,
     price: toNumber(product.price),
-    image_url: image ? resolveMediaUrl(env, image.r2Key) : '/banners/category-watercolor-art.jpg',
+    image_url: images[0] ?? fallback,
+    image_urls: images,
+    video_url: video ? resolveMediaUrl(env, video.r2Key) : undefined,
     product_type: productTypeFromCategory(product.categoryId),
     stock: product.stock,
     is_active: product.status === 'active',
@@ -88,12 +99,8 @@ function mapSellerProduct(
   media: (typeof productMedia.$inferSelect)[],
   env: Env,
 ) {
-  const images = media.filter((m) => m.mediaType === 'IMAGE').map((m) => resolveMediaUrl(env, m.r2Key))
-  const video = media.find((m) => m.mediaType === 'VIDEO')
   return {
     ...mapBuyerProduct(product, media, env),
-    image_urls: images,
-    video_url: video ? resolveMediaUrl(env, video.r2Key) : undefined,
     updated_at: product.updatedAt.toISOString(),
   }
 }
