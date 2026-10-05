@@ -2,7 +2,7 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { createDb } from '../db/client'
 import { authMiddleware, requireRoles } from '../middleware/auth.middleware'
-import { getSellerDashboardStats, listAllOrders, updateOrderStatus } from '../services/order.service'
+import { getSellerDashboardStats, listPaidOrders, updateOrderStatus } from '../services/order.service'
 import {
   createProduct,
   deleteProduct,
@@ -27,7 +27,7 @@ sellerRoutes.get('/dashboard/stats', async (c) => {
 
 sellerRoutes.get('/orders', async (c) => {
   const db = createDb(c.env)
-  return direct(c, await listAllOrders(db, c.env))
+  return direct(c, await listPaidOrders(db, c.env))
 })
 
 sellerRoutes.patch('/orders/:id', zValidator('json', updateOrderStatusSchema), async (c) => {

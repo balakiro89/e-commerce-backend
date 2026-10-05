@@ -193,7 +193,7 @@ export async function createOrder(db: Db, env: Env, input: CreateOrderInput, use
 
 export async function listOrdersForUser(db: Db, env: Env, userId: string) {
   const rows = await db.query.orders.findMany({
-    where: eq(orders.userId, userId),
+    where: and(eq(orders.userId, userId), eq(orders.paymentStatus, 'success')),
     orderBy: [desc(orders.createdAt)],
   })
   return Promise.all(
@@ -213,8 +213,24 @@ export async function getOrderById(db: Db, env: Env, orderId: string, userId?: s
   if (!order.userId || order.userId !== userId) {
     throw new AppError('Order not found', 'ORDER_NOT_FOUND', 404)
   }
+  if (order.paymentStatus !== 'success') {
+    throw new AppError('Order not found', 'ORDER_NOT_FOUND', 404)
+  }
   const items = await db.query.orderItems.findMany({ where: eq(orderItems.orderId, order.id) })
   return mapOrderRow(order, items, env)
+}
+
+export async function listPaidOrders(db: Db, env: Env) {
+  const rows = await db.query.orders.findMany({
+    where: eq(orders.paymentStatus, 'success'),
+    orderBy: [desc(orders.createdAt)],
+  })
+  return Promise.all(
+    rows.map(async (order) => {
+      const items = await db.query.orderItems.findMany({ where: eq(orderItems.orderId, order.id) })
+      return mapOrderRow(order, items, env)
+    }),
+  )
 }
 
 export async function listAllOrders(db: Db, env: Env) {
@@ -243,8 +259,10 @@ export async function getSellerDashboardStats(db: Db) {
   const start = new Date()
   start.setHours(0, 0, 0, 0)
 
-  const allOrders = await db.query.orders.findMany()
-  const todays = allOrders.filter((o) => o.createdAt >= start)
+  const paidOrders = await db.query.orders.findMany({
+    where: eq(orders.paymentStatus, 'success'),
+  })
+  const todays = paidOrders.filter((o) => o.createdAt >= start)
   const allProducts = await db.query.products.findMany()
 
   return {
