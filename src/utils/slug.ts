@@ -9,6 +9,5 @@ export function slugify(input: string): string {
 
 export function generateOrderNumber(): string {
   const now = Date.now().toString(36).toUpperCase()
-  const rand = crypto.getRandomValues(new Uint32Array(1))[0].toString(36).toUpperCase()
-  return `ORD-${now}-${rand}`.slice(0, 32)
+  return `BK-${now}`
 }
