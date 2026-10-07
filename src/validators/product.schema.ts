@@ -34,9 +34,6 @@ export const createProductSchema = z.object({
   compare_at_price: z.coerce.number().positive().optional(),
   featured: z.boolean().optional(),
   trending: z.boolean().optional(),
-  specifications: z
-    .array(z.object({ label: z.string(), value: z.string(), sort_order: z.number().optional() }))
-    .optional(),
 })
 
 export const updateProductSchema = createProductSchema.partial()

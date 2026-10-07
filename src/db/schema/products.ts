@@ -20,7 +20,7 @@ export const products = pgTable('products', {
   name: varchar('name', { length: 255 }).notNull(),
   shortDescription: text('short_description').notNull().default(''),
   description: text('description').notNull().default(''),
-  categoryId: varchar('category_id', { length: 64 }).notNull(),
+  productType: varchar('product_type', { length: 64 }).notNull(),
   price: numeric('price', { precision: 12, scale: 2 }).notNull(),
   compareAtPrice: numeric('compare_at_price', { precision: 12, scale: 2 }),
   stock: integer('stock').notNull().default(0),
@@ -46,14 +46,4 @@ export const productMedia = pgTable('product_media', {
   alt: varchar('alt', { length: 255 }),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
-
-export const productSpecifications = pgTable('product_specifications', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  productId: uuid('product_id')
-    .notNull()
-    .references(() => products.id, { onDelete: 'cascade' }),
-  label: varchar('label', { length: 120 }).notNull(),
-  value: text('value').notNull(),
-  sortOrder: integer('sort_order').notNull().default(0),
 })

@@ -15,6 +15,20 @@
       "when": 1790857617962,
       "tag": "0001_drop_user_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790857617963,
+      "tag": "0002_order_shipping_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790857617964,
+      "tag": "0003_drop_specs_rename_product_type",
+      "breakpoints": true
     }
   ]
 }

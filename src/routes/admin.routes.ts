@@ -19,11 +19,6 @@ adminRoutes.get('/orders', async (c) => {
 
 adminRoutes.patch('/orders/:id/status', zValidator('json', updateOrderStatusSchema), async (c) => {
   const db = createDb(c.env)
-  const data = await updateOrderStatus(
-    db,
-    c.env,
-    c.req.param('id'),
-    c.req.valid('json').order_status,
-  )
+  const data = await updateOrderStatus(db, c.env, c.req.param('id'), c.req.valid('json'))
   return success(c, 'Order status updated', data)
 })

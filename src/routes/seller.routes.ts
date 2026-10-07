@@ -32,12 +32,7 @@ sellerRoutes.get('/orders', async (c) => {
 
 sellerRoutes.patch('/orders/:id', zValidator('json', updateOrderStatusSchema), async (c) => {
   const db = createDb(c.env)
-  const data = await updateOrderStatus(
-    db,
-    c.env,
-    c.req.param('id'),
-    c.req.valid('json').order_status,
-  )
+  const data = await updateOrderStatus(db, c.env, c.req.param('id'), c.req.valid('json'))
   return direct(c, data)
 })
 

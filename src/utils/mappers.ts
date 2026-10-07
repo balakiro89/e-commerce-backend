@@ -56,14 +56,6 @@ export function toFrontendPaymentStatus(dbStatus: string): string {
   }
 }
 
-export function categoryFromProductType(productType: string): string {
-  return productType
-}
-
-export function productTypeFromCategory(categoryId: string): string {
-  return categoryId
-}
-
 export function isSellerRole(role: UserRole): boolean {
   return role === 'seller' || role === 'admin'
 }

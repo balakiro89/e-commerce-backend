@@ -12,9 +12,8 @@ import {
   sql,
 } from 'drizzle-orm'
 import type { Db } from '../db/client'
-import { productMedia, productSpecifications, products } from '../db/schema'
+import { productMedia, products } from '../db/schema'
 import type { Env } from '../types/env'
-import { productTypeFromCategory } from '../utils/mappers'
 import { toNumber } from '../utils/money'
 import { slugify } from '../utils/slug'
 import { AppError } from '../utils/response'
@@ -34,7 +33,6 @@ type ProductInput = {
   compare_at_price?: number
   featured?: boolean
   trending?: boolean
-  specifications?: { label: string; value: string; sort_order?: number }[]
 }
 
 async function uniqueSlug(db: Db, name: string, excludeId?: string) {
@@ -88,7 +86,7 @@ function mapBuyerProduct(
     image_url: images[0] ?? fallback,
     image_urls: images,
     video_url: video ? resolveMediaUrl(env, video.r2Key) : undefined,
-    product_type: productTypeFromCategory(product.categoryId),
+    product_type: product.productType,
     stock: product.stock,
     is_active: product.status === 'active',
   }
@@ -139,23 +137,6 @@ async function replaceMedia(db: Db, env: Env, productId: string, input: ProductI
   }
 }
 
-async function replaceSpecifications(
-  db: Db,
-  productId: string,
-  specs: ProductInput['specifications'],
-) {
-  await db.delete(productSpecifications).where(eq(productSpecifications.productId, productId))
-  if (!specs?.length) return
-  await db.insert(productSpecifications).values(
-    specs.map((spec, index) => ({
-      productId,
-      label: spec.label,
-      value: spec.value,
-      sortOrder: spec.sort_order ?? index,
-    })),
-  )
-}
-
 export async function listProducts(db: Db, env: Env, query: {
   page: number
   limit: number
@@ -178,7 +159,7 @@ export async function listProducts(db: Db, env: Env, query: {
       ),
     )
   }
-  if (query.product_type) filters.push(eq(products.categoryId, query.product_type))
+  if (query.product_type) filters.push(eq(products.productType, query.product_type))
   if (query.min_price != null) filters.push(gte(products.price, String(query.min_price)))
   if (query.max_price != null) filters.push(lte(products.price, String(query.max_price)))
   if (query.in_stock) filters.push(gte(products.stock, 1))
@@ -257,7 +238,7 @@ export async function createProduct(db: Db, env: Env, input: ProductInput, creat
       name: input.name,
       shortDescription: input.short_description,
       description: input.description,
-      categoryId: input.product_type,
+      productType: input.product_type,
       price: String(input.price),
       compareAtPrice: input.compare_at_price != null ? String(input.compare_at_price) : null,
       stock: input.stock,
@@ -270,7 +251,6 @@ export async function createProduct(db: Db, env: Env, input: ProductInput, creat
     .returning()
 
   await replaceMedia(db, env, product.id, input)
-  await replaceSpecifications(db, product.id, input.specifications)
 
   const media = await db.query.productMedia.findMany({
     where: eq(productMedia.productId, product.id),
@@ -293,7 +273,7 @@ export async function updateProduct(db: Db, env: Env, id: string, input: Partial
       name: input.name ?? existing.name,
       shortDescription: input.short_description ?? existing.shortDescription,
       description: input.description ?? existing.description,
-      categoryId: input.product_type ?? existing.categoryId,
+      productType: input.product_type ?? existing.productType,
       price: input.price != null ? String(input.price) : existing.price,
       compareAtPrice:
         input.compare_at_price != null ? String(input.compare_at_price) : existing.compareAtPrice,
@@ -315,15 +295,11 @@ export async function updateProduct(db: Db, env: Env, id: string, input: Partial
       description: product.description,
       price: toNumber(product.price),
       stock: product.stock,
-      product_type: product.categoryId,
+      product_type: product.productType,
       is_active: product.status === 'active',
       image_urls: input.image_urls ?? [],
       video_url: input.video_url,
     })
-  }
-
-  if (input.specifications) {
-    await replaceSpecifications(db, id, input.specifications)
   }
 
   const media = await db.query.productMedia.findMany({

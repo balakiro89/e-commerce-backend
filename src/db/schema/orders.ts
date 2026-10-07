@@ -48,6 +48,8 @@ export const orders = pgTable('orders', {
   total: numeric('total', { precision: 12, scale: 2 }).notNull(),
   orderStatus: orderStatusEnum('order_status').notNull().default('payment_pending'),
   paymentStatus: paymentStatusEnum('payment_status').notNull().default('pending'),
+  trackingId: varchar('tracking_id', { length: 128 }),
+  shipmentService: varchar('shipment_service', { length: 128 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })

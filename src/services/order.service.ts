@@ -6,7 +6,6 @@ import {
   toDbOrderStatus,
   toFrontendOrderStatus,
   toFrontendPaymentStatus,
-  productTypeFromCategory,
 } from '../utils/mappers'
 import { toNumber, roundMoney } from '../utils/money'
 import { generateOrderNumber } from '../utils/slug'
@@ -77,6 +76,8 @@ function mapOrderRow(
     customer_name: order.customerName,
     customer_email: order.customerEmail,
     customer_phone: order.customerPhone,
+    tracking_id: order.trackingId ?? undefined,
+    shipment_service: order.shipmentService ?? undefined,
   }
 }
 
@@ -165,7 +166,7 @@ export async function createOrder(db: Db, env: Env, input: CreateOrderInput, use
         productId: line.product.id,
         productName: line.product.name,
         productSku: line.product.sku,
-        productType: productTypeFromCategory(line.product.categoryId),
+        productType: line.product.productType,
         imageUrl: line.imageKey,
         quantity: line.quantity,
         unitPrice: String(line.unitPrice),
@@ -243,13 +244,47 @@ export async function listAllOrders(db: Db, env: Env) {
   )
 }
 
-export async function updateOrderStatus(db: Db, env: Env, orderId: string, frontendStatus: string) {
+type UpdateOrderStatusInput = {
+  order_status: string
+  tracking_id?: string
+  shipment_service?: string
+}
+
+export async function updateOrderStatus(
+  db: Db,
+  env: Env,
+  orderId: string,
+  input: UpdateOrderStatusInput,
+) {
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
+  if (!order) throw new AppError('Order not found', 'ORDER_NOT_FOUND', 404)
+
+  const frontendStatus = input.order_status
   const dbStatus = toDbOrderStatus(frontendStatus)
-  const [updated] = await db
-    .update(orders)
-    .set({ orderStatus: dbStatus as typeof orders.$inferInsert.orderStatus, updatedAt: new Date() })
-    .where(eq(orders.id, orderId))
-    .returning()
+
+  if (frontendStatus === 'SHIPPED') {
+    const trackingId = input.tracking_id?.trim()
+    const shipmentService = input.shipment_service
+    if (!trackingId || !shipmentService) {
+      throw new AppError(
+        'Tracking ID and shipment service are required to mark an order as Shipped',
+        'SHIPPING_REQUIRED',
+        400,
+      )
+    }
+  }
+
+  const patch: Partial<typeof orders.$inferInsert> = {
+    orderStatus: dbStatus as typeof orders.$inferInsert.orderStatus,
+    updatedAt: new Date(),
+  }
+
+  if (frontendStatus === 'SHIPPED') {
+    patch.trackingId = input.tracking_id!.trim()
+    patch.shipmentService = input.shipment_service!
+  }
+
+  const [updated] = await db.update(orders).set(patch).where(eq(orders.id, orderId)).returning()
   if (!updated) throw new AppError('Order not found', 'ORDER_NOT_FOUND', 404)
   const items = await db.query.orderItems.findMany({ where: eq(orderItems.orderId, updated.id) })
   return mapOrderRow(updated, items, env)
