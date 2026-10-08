@@ -89,6 +89,7 @@ function mapBuyerProduct(
     product_type: product.productType,
     stock: product.stock,
     is_active: product.status === 'active',
+    created_at: product.createdAt.toISOString(),
   }
 }
 
